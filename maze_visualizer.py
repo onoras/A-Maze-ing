@@ -1,15 +1,33 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+import tty
+import termios
+
+
+def get_key():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        key = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return key
 
 
 def print_section(
     canvas,
-    cam_y,
-    cam_x,
-    view_h,
-    view_w,
+    cam_y: int,
+    cam_x: int,
+    view_h: int,
+    view_w: int,
     WALL_COLOR,
     FULL_CELL_COLOR,
     RESET_COLOR
-):
+) -> None:
+
     canvas_h = len(canvas)
     canvas_w = len(canvas[0])
 
@@ -30,7 +48,26 @@ def print_section(
         print(line)
 
 
+def print_instructions() -> None:
+    lines = [
+        "c - switch color",
+        "x - change display size",
+        "q - quit"
+    ]
+
+    width = max(len(line) for line in lines) + 2  # padding
+
+    print("┌" + "─" * width + "┐")
+    print("│ COMMANDS:" + " " * (width - len(" COMMANDS:")) + "│")
+    print("├" + "─" * width + "┤")
+    for line in lines:
+        print(f"│ {line}" + " " * (width - len(line) - 1) + "│")
+    print("└" + "─" * width + "┘")
+
+
 def main() -> None:
+
+
 
     maze_hex = [
     ["9","5","1","5","3","9","1","5","3","9","5","5","1","7","9","5","1","5","1","1","5","1","1","5","3"],
@@ -53,20 +90,17 @@ def main() -> None:
     ["A","8","4","4","2","C","6","C","2","C","1","1","6","8","5","5","2","C","1","6","A","9","5","4","2"],
     ["8","6","9","5","6","9","5","1","6","9","2","C","1","4","5","5","4","1","6","9","2","8","5","5","2"],
     ["C","5","4","5","5","4","5","4","5","6","C","5","4","5","5","5","5","4","5","4","4","4","5","5","6"],
-]
+    ]
 
+    view_height = 40
+    view_width = 40
     H = len(maze_hex)
     W = len(maze_hex[0])
-
     canvas_height = 2 * H + 1
     canvas_width = 2 * W + 1
+    cam_y = 0
+    cam_x = 0
 
-    # Colors (ANSI)
-    WALL_COLOR = "\033[41m"       # Red
-    FULL_CELL_COLOR = "\033[44m"  # Blue
-    RESET_COLOR = "\033[0m"
-
-    # Initialize canvas
     canvas = [[" " for _ in range(canvas_width)] for _ in range(canvas_height)]
 
     # Fill walls and cells
@@ -107,29 +141,84 @@ def main() -> None:
         canvas[0][j] = "█"
         canvas[-1][j] = "█"
 
-    # View size (adjust independently)
-    VIEW_HEIGHT = 100
-    VIEW_WIDTH  = 100
+    # Color definitions
+    COLORS = {
+        "RED": "\033[41m",
+        "BLUE": "\033[44m",
+        "GREEN": "\033[42m",
+        "RESET": "\033[0m",
+    }
 
-    # Camera position (move these to pan around)
-    cam_y = 0
-    cam_x = 0
+    colors = {
+        "WALL": "\033[41m",
+        "FILL": "\033[0m",
+        "LOGO": "\033[44m",
+    }
 
-    if VIEW_HEIGHT > canvas_height:
-        VIEW_HEIGHT = canvas_height
-    if VIEW_WIDTH > canvas_width:
-        VIEW_WIDTH = canvas_width
+    while True:
+        print_section(
+            canvas,
+            cam_y,
+            cam_x,
+            view_height,
+            view_height,
+            colors["WALL"],
+            colors["LOGO"],
+            COLORS["RESET"]
+        )
+        print_instructions()
 
-    print_section(
-        canvas,
-        cam_y,
-        cam_x,
-        VIEW_HEIGHT,
-        VIEW_WIDTH,
-        WALL_COLOR,
-        FULL_CELL_COLOR,
-        RESET_COLOR
-    )
+        key = get_key()
+
+        subprocess.run(["clear"])
+
+        match key:
+            case "q":
+                break
+            case "c":
+                target = input("Change which color? (WALL / FILL / LOGO): ").upper()
+                if target not in colors:
+                    print("Invalid target")
+                    continue
+                color = input(f"Select color ({', '.join(COLORS)}): ").upper()
+                if color not in COLORS:
+                    print("Invalid color")
+                    continue
+                colors[target] = COLORS[color]
+            case "x":
+                try:
+                    target = int(input("ENTER DISPLAY SIZE (X): "))
+                    if target > 10:
+                        print(f"y set to {target}")
+                        view_height = target
+                except Exception:
+                    print("Invalid input!")
+                    continue
+                try:
+                    target = int(input("ENTER DISPLAY SIZE (Y): "))
+                    if target > 10:
+                        print(f"x set to {target}")
+                        view_width = target
+                except Exception:
+                    print("Invalid input!")
+                    continue
+                if view_height > canvas_height:
+                    view_height = canvas_height
+                if view_width > canvas_width:
+                    view_width = canvas_width
+
+            case "w":
+                cam_y -= 1
+            case "s":
+                cam_y += 1
+            case "a":
+                cam_x -= 1
+            case "d":
+                cam_x += 1
+        cam_y = max(0, min(cam_y, canvas_height - view_height))
+        cam_x = max(0, min(cam_x, canvas_width - view_width))
+
+
 
 
 if  __name__ == "__main__":
