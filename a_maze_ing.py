@@ -1,5 +1,6 @@
 import sys
-from generator import ConfigParser, MazeGenerator, MazeOutput
+from generator import ConfigParser, MazeOutput
+from generator.algorithms.dfs_backtracker import DFSAlgorithm
 
 
 def main() -> None:
@@ -18,6 +19,8 @@ def main() -> None:
         exit_pos = parser.get_exit()
         output_file = parser.get_output_file()
         algo = parser.get_algo()
+        seed = parser.get_seed()
+        perfect = parser.is_perfect()
 
         print("Configuration loaded:")
         print(f"  Dimensions: {width}x{height}")
@@ -25,7 +28,9 @@ def main() -> None:
         print(f"  Exit: {exit_pos}")
         print(f"  Output: {output_file}")
         print(f"  Algorithm: {algo}")
-        generator = MazeGenerator(width, height, algo)
+        print(f"  Is Perfect: {perfect}")
+        print(f"  Seed: {seed}")
+        generator = DFSAlgorithm(width, height, seed, perfect)
         generator.set_entry_exit(entry, exit_pos)
         grid = generator.generate()
         output = MazeOutput(output_file)

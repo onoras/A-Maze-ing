@@ -1,6 +1,7 @@
-from .config_parser import ConfigParser
-from .maze_gen import MazeGenerator
-from .maze_output import MazeOutput
+from generator.config_parser import ConfigParser
+from generator.maze_gen import MazeGenerator
+from generator.maze_output import MazeOutput
+from generator.algorithms.dfs_backtracker import DFSAlgorithm
 
 __version__ = "1.0.0"
-__all__ = ['ConfigParser', 'MazeGenerator', 'MazeOutput']
+__all__ = ['ConfigParser', 'MazeGenerator', 'MazeOutput', 'DFSAlgorithm']

@@ -1,4 +1,5 @@
 from typing import Dict, Tuple
+import random
 
 
 class ConfigParser:
@@ -8,7 +9,7 @@ class ConfigParser:
 
     def validate_config(self) -> None:
         required_keys = ['WIDTH', 'HEIGHT', 'ENTRY', 'EXIT',
-                         'OUTPUT_FILE', 'PERFECT']
+                         'OUTPUT_FILE', 'PERFECT', 'ALGORITHM']
         missing = [key for key in required_keys if key not in self.config]
         if missing:
             raise ValueError
@@ -76,3 +77,9 @@ class ConfigParser:
             return "PRIM"
         else:
             raise ValueError("No correct Algorithm")
+
+    def get_seed(self) -> int:
+        if 'SEED' in self.config and self.config['SEED']:
+            return int(self.config['SEED'])
+        else:
+            return random.randint(1, 100000)

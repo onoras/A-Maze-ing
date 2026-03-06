@@ -11,7 +11,8 @@ class MazeGenerator(ABC):
     SOUTH = 4
     WEST = 8
 
-    def __init__(self, width: int, height: int, seed: int) -> None:
+    def __init__(self, width: int, height: int, seed: int,
+                 perfect: bool) -> None:
         """
         Initialize maze generator.
         Args:
@@ -24,6 +25,7 @@ class MazeGenerator(ABC):
         self.width = width
         self.height = height
         self.seed = seed
+        self.perfect = perfect
         self.grid: List[List[int]] = []
         self.entry: Tuple[int, int] = (0, 0)
         self.exit: Tuple[int, int] = (width - 1, height - 1)
@@ -33,55 +35,70 @@ class MazeGenerator(ABC):
         """
         Checks and sets entry and exit points
 
-        entry_pos: Entry coordinates (x, y)
-        exit_pos: Exit coordinates (x, y)
+        entry_pos: Entry coordinates (col, row)
+        exit_pos: Exit coordinates (col, row)
         """
         if entry_pos == exit_pos:
             raise ValueError("Entry and exit must be different")
-        ex, ey = entry_pos
-        xx, xy = exit_pos
-        if not (0 <= ex < self.width and 0 <= ey < self.height):
+        entry_col, entry_row = entry_pos
+        exit_col, exit_row = exit_pos
+        if not (0 <= entry_col < self.width and 0 <= entry_row < self.height):
             raise ValueError(f"Entry {entry_pos} out of bounds")
-        if not (0 <= xx < self.width and 0 <= xy < self.height):
+        if not (0 <= exit_col < self.width and 0 <= exit_row < self.height):
             raise ValueError(f"Exit {exit_pos} out of bounds")
         self.entry = entry_pos
         self.exit = exit_pos
 
     @abstractmethod
-    def _generate_paths(self) -> None:
+    def _generate_paths(self, obstacle_cells: List[Tuple[int, int]] = None):
         """
         Generate maze paths using specific algorithms in the subclasses
         """
         pass
 
     def generate(self) -> List[List[int]]:
-        self._generate_paths()
-        self._create_outer_walls()
+        self.grid = [[15 for _ in range(self.width)] for _ in
+                     range(self.height)]
+        pattern_cells = []
         if self.width >= 7 and self.height >= 5:
-            self._create_42_pattern()
-
+            pattern_cells = self._create_42_pattern()
+        self._generate_paths(pattern_cells)
+        self._create_outer_walls()
         return self.grid
 
     def _create_outer_walls(self) -> None:
-        for x in range(self.width):
-            if (x, 0) != self.entry:
-                self.grid[0][x] |= self.NORTH
+        """
+        Ensure external borders have walls (except at entry/exit).
+        """
+        entry_col, entry_row = self.entry
+        exit_col, exit_row = self.exit
 
-        for x in range(self.width):
-            if (x, self.height - 1) != self.exit:
-                self.grid[self.height - 1][x] |= self.SOUTH
+        for col in range(self.width):
+            if not (entry_row == 0 and entry_col == col) and \
+               not (exit_row == 0 and exit_col == col):
+                self.grid[0][col] |= self.NORTH
 
-        for y in range(self.height):
-            if (0, y) != self.entry:
-                self.grid[y][0] |= self.WEST
+        for col in range(self.width):
+            if not (entry_row == self.height - 1 and entry_col == col) and \
+               not (exit_row == self.height - 1 and exit_col == col):
+                self.grid[self.height - 1][col] |= self.SOUTH
 
-        for y in range(self.height):
-            if (self.width - 1, y) != self.exit:
-                self.grid[y][self.width - 1] |= self.EAST
+        for row in range(self.height):
+            if not (entry_col == 0 and entry_row == row) and \
+               not (exit_col == 0 and exit_row == row):
+                self.grid[row][0] |= self.WEST
 
-    def _create_42_pattern(self) -> None:
-        center_x = (self.width - 7) // 2
-        center_y = (self.height - 5) // 2
+        for row in range(self.height):
+            if not (entry_col == self.width - 1 and entry_row == row) and \
+               not (exit_col == self.width - 1 and exit_row == row):
+                self.grid[row][self.width - 1] |= self.EAST
+
+    def _create_42_pattern(self) -> List[Tuple[int, int]]:
+        """
+        Add 42 pattern made of fully closed cells in the center.
+        """
+        center_col = (self.width - 7) // 2
+        center_row = (self.height - 5) // 2
 
         four_pattern = [
             [1, 0, 1],
@@ -98,29 +115,33 @@ class MazeGenerator(ABC):
             [1, 0, 0],
             [1, 1, 1],
         ]
-        for dy in range(5):
-            for dx in range(3):
-                if four_pattern[dy][dx] == 1:
-                    y = center_y + dy
-                    x = center_x + dx - 1
-                    if 0 <= y < self.height and 0 <= x < self.width:
-                        self.grid[y][x] = 15
-        for dy in range(5):
-            for dx in range(3):
-                if two_pattern[dy][dx] == 1:
-                    y = center_y + dy
-                    x = center_x + dx + 4
-                    if 0 <= y < self.height and 0 <= x < self.width:
-                        self.grid[y][x] = 15
+        pattern_cells = []
+        for row_offset in range(5):
+            for col_offset in range(3):
+                if four_pattern[row_offset][col_offset] == 1:
+                    row = center_row + row_offset
+                    col = center_col + col_offset - 1
+                    if 0 <= row < self.height and 0 <= col < self.width:
+                        self.grid[row][col] = 15
+                        pattern_cells.append((row, col))
+        for row_offset in range(5):
+            for col_offset in range(3):
+                if two_pattern[row_offset][col_offset] == 1:
+                    row = center_row + row_offset
+                    col = center_col + col_offset + 4
+                    if 0 <= row < self.height and 0 <= col < self.width:
+                        self.grid[row][col] = 15
+                        pattern_cells.append((row, col))
+        return pattern_cells
 
     def get_grid(self) -> List[List[int]]:
         return self.grid
 
-    def _remove_wall(self, x: int, y: int, direction: int) -> None:
+    def _remove_wall(self, row: int, col: int, direction: int) -> None:
         """
         Removes Wall from a cell by flipping ~ the bits of the cell
         """
-        self.grid[x][y] &= ~direction
+        self.grid[row][col] &= ~direction
 
     def _get_opposite(self, direction: int) -> int:
         """
